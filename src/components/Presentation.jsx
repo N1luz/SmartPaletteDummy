@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { 
   ArrowRight, ShieldAlert, Award, FileText, Settings, User, 
-  Layers, Zap, AlertCircle, Compass, Thermometer, Database 
+  Layers, Zap, AlertCircle, Compass, Thermometer, Database,
+  Check, CheckCircle2
 } from "lucide-react";
 import AnimatedPallet from "./AnimatedPallet";
 
