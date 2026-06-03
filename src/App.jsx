@@ -584,6 +584,10 @@ export default function App() {
   const [status, setStatus] = useState("alle");
   const [area, setArea] = useState("Alle");
 
+  // Splash Screen States
+  const [showSplash, setShowSplash] = useState(true);
+  const [fadeSplash, setFadeSplash] = useState(false);
+
   // Extended Filter States
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [sortBy, setSortBy] = useState("warnFirst");
@@ -611,6 +615,16 @@ export default function App() {
     const t = setTimeout(() => setToast(""), 2600);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Timer for boot Splash Screen
+  useEffect(() => {
+    const timerFade = setTimeout(() => setFadeSplash(true), 2000);
+    const timerRemove = setTimeout(() => setShowSplash(false), 2600);
+    return () => {
+      clearTimeout(timerFade);
+      clearTimeout(timerRemove);
+    };
+  }, []);
 
   const confirmAdd = () => {
     setPallets((prev) => (prev.some((p) => p.id === scanned.id) ? prev : [...prev, scanned]));
@@ -748,6 +762,20 @@ export default function App() {
           box-shadow: 0 6px 16px rgba(20,10,15,.08) !important;
         }
 
+        /* Splash Screen keyframes */
+        @keyframes logoBoot {
+          0% { transform: scale(0.9) translateY(0); }
+          100% { transform: scale(1.04) translateY(-4px); }
+        }
+        @keyframes labelFade {
+          0% { opacity: 0.55; }
+          100% { opacity: 1; }
+        }
+        @keyframes bootProgress {
+          0% { width: 0%; }
+          100% { width: 100%; }
+        }
+
         * { -webkit-tap-highlight-color: transparent; }
         ::-webkit-scrollbar { width: 0; }
       `}</style>
@@ -764,6 +792,66 @@ export default function App() {
         <div style={{ position: "absolute", bottom: 180, right: 20, width: 160, height: 160, borderRadius: "50%", background: "rgba(26,122,60,0.035)", filter: "blur(45px)", animation: "floatParticle2 24s ease-in-out infinite", pointerEvents: "none", zIndex: 1 }} />
         
         <div style={{ width: "100%", height: "100%", background: C.bg, borderRadius: 46, overflow: "hidden", position: "relative", display: "flex", flexDirection: "column", zIndex: 2 }}>
+          
+          {/* Boot Splash Screen */}
+          {showSplash && (
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: `linear-gradient(135deg, ${C.red} 0%, ${C.redDark} 100%)`,
+              zIndex: 100,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 20,
+              opacity: fadeSplash ? 0 : 1,
+              transition: "opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1)",
+              pointerEvents: fadeSplash ? "none" : "auto"
+            }}>
+              <div style={{
+                background: "#fff",
+                padding: "16px 24px",
+                borderRadius: 20,
+                boxShadow: "0 15px 35px rgba(0,0,0,0.22)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                animation: "logoBoot 1.5s cubic-bezier(0.25, 0.8, 0.25, 1) infinite alternate"
+              }}>
+                <img src="/carl-roth-logo.png" alt="Carl Roth Logo" style={{ height: 42, objectFit: "contain" }} />
+              </div>
+              
+              <div style={{ 
+                color: "#fff", 
+                fontSize: 21, 
+                fontWeight: 800, 
+                letterSpacing: 1.2,
+                marginTop: 6,
+                fontStyle: "italic",
+                animation: "labelFade 1.2s ease-in-out infinite alternate"
+              }}>
+                SmartPallet
+              </div>
+
+              <div style={{
+                width: 120,
+                height: 3,
+                background: "rgba(255,255,255,0.22)",
+                borderRadius: 999,
+                overflow: "hidden",
+                marginTop: 10
+              }}>
+                <div style={{
+                  height: "100%",
+                  background: "#fff",
+                  borderRadius: 999,
+                  animation: "bootProgress 2.0s cubic-bezier(0.4, 0, 0.2, 1) forwards"
+                }} />
+              </div>
+            </div>
+          )}
+
           <div style={{ position: "absolute", top: 11, left: "50%", transform: "translateX(-50%)", width: 116, height: 33, background: "#0B0B0D", borderRadius: 999, zIndex: 30 }} />
 
           {!light && <StatusBar />}
