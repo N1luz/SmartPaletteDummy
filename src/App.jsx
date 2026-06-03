@@ -173,7 +173,7 @@ function Chips({ value, onChange, options }) {
   );
 }
 
-function Dashboard({ allPallets, displayPallets, query, setQuery, status, setStatus, area, setArea, onOpen, onScan, openInfo, onOpenFilter, isFilterActive, onResetAll }) {
+function Dashboard({ allPallets, displayPallets, query, setQuery, status, setStatus, area, setArea, onOpen, onScan, openInfo, onOpenFilter, isFilterActive, onResetAll, onOpenNotifs, unreadCount, simulating, onToggleSim }) {
   const warnCount = allPallets.filter((p) => p.warn).length;
   const areas = ["Alle", "Wareneingang", "Lager", "Versand"];
   const filterActive = status !== "alle" || area !== "Alle" || query.trim().length > 0 || isFilterActive;
@@ -189,7 +189,44 @@ function Dashboard({ allPallets, displayPallets, query, setQuery, status, setSta
             <img src="/carl-roth-logo.png" alt="Carl Roth Logo" style={{ height: 22, objectFit: "contain", borderRadius: 3 }} />
             <span style={{ fontSize: 19, fontWeight: 800 }}>SmartPallet</span>
           </div>
-          <Bell size={20} color="#fff" />
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* Live simulation control */}
+            <button onClick={onToggleSim} 
+              style={{ 
+                border: "none", 
+                background: simulating ? "rgba(74,222,128,0.22)" : "rgba(255,255,255,0.12)", 
+                color: simulating ? "#4ADE80" : "#fff", 
+                borderRadius: 999, 
+                padding: "5px 10px", 
+                fontSize: 11, 
+                fontWeight: 700, 
+                cursor: "pointer", 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 5,
+                transition: "all 0.2s" 
+              }}>
+              <span style={{ 
+                width: 6, 
+                height: 6, 
+                borderRadius: "50%", 
+                background: simulating ? "#4ADE80" : "#fff", 
+                display: "inline-block", 
+                animation: simulating ? "pulse 1.2s infinite" : "none" 
+              }} />
+              Live-Demo
+            </button>
+
+            {/* Notification Bell with Badge */}
+            <button onClick={onOpenNotifs} style={{ border: "none", background: "none", cursor: "pointer", position: "relative", padding: 2, display: "flex", color: "#fff", transition: "transform 0.15s" }} className="bell-btn">
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span style={{ position: "absolute", top: -3, right: -3, background: C.red, color: "#fff", fontSize: 9, fontWeight: 800, minWidth: 14, height: 14, padding: "0 2px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #E2001A" }}>
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 16 }}>
           <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>Aktive Paletten · Temperatur</p>
@@ -563,6 +600,68 @@ function FilterSheet({ open, onClose, sortBy, setSortBy, tempMin, setTempMin, te
   );
 }
 
+/* ---------- Notification Drawer Bottom Sheet ---------- */
+function NotificationSheet({ open, onClose, notifications, onMarkAllRead, onClearAll, onSelectPallet }) {
+  if (!open) return null;
+  const unreadCount = notifications.filter(n => !n.read).length;
+  
+  return (
+    <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.32)", display: "flex", alignItems: "flex-end", zIndex: 40, borderRadius: 46, animation: "fade .2s ease" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", background: "#fff", borderRadius: "26px 26px 46px 46px", padding: "10px 22px 34px", animation: "up .28s cubic-bezier(.2,.8,.2,1)", display: "flex", flexDirection: "column", maxHeight: "80%" }}>
+        <div style={{ width: 38, height: 5, background: "#D9DBE0", borderRadius: 999, margin: "0 auto 16px" }} />
+        
+        {/* Title */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: C.warnBg, color: C.red, display: "flex", alignItems: "center", justifyContent: "center" }}><Bell size={18} /></div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.ink }}>Meldungen & Alarme</h3>
+              <span style={{ fontSize: 12, color: C.muted }}>{unreadCount} ungelesen</span>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: C.bg, borderRadius: 999, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: C.muted }}><X size={18} /></button>
+        </div>
+
+        {/* Action Bar */}
+        {notifications.length > 0 && (
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, paddingBottom: 8, borderBottom: `1px solid ${C.line}` }}>
+            <button onClick={onMarkAllRead} style={{ border: "none", background: "none", color: C.red, fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Alle als gelesen markieren</button>
+            <button onClick={onClearAll} style={{ border: "none", background: "none", color: C.muted, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Leeren</button>
+          </div>
+        )}
+
+        {/* Notifications Scroll Area */}
+        <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 10, paddingRight: 2, paddingBottom: 10 }}>
+          {notifications.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 20px", color: C.muted }}>
+              <Bell size={36} style={{ strokeWidth: 1.5, marginBottom: 8, opacity: 0.5 }} />
+              <div style={{ fontSize: 14.5, fontWeight: 700, color: C.ink }}>Keine neuen Meldungen</div>
+              <div style={{ fontSize: 12.5, marginTop: 2 }}>Alles in Ordnung! Telemetriedaten laufen im Hintergrund.</div>
+            </div>
+          ) : (
+            notifications.map(n => (
+              <button key={n.id} onClick={() => onSelectPallet(n)} style={{ width: "100%", background: n.read ? C.card : "rgba(226, 0, 26, 0.04)", border: n.read ? `1px solid ${C.line}` : `1px solid rgba(226, 0, 26, 0.15)`, borderRadius: 12, padding: 12, cursor: "pointer", textAlign: "left", fontFamily: "inherit", display: "flex", gap: 12 }}>
+                <div style={{ width: 34, height: 34, borderRadius: "50%", background: n.type === "warn" ? C.warnBg : C.okBg, color: n.type === "warn" ? C.red : C.ok, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto", marginTop: 2 }}>
+                  {n.type === "warn" ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: C.ink }}>{n.product} ({n.palletId})</span>
+                    <span style={{ fontSize: 11, color: C.muted }}>{n.time}</span>
+                  </div>
+                  <p style={{ fontSize: 12.5, color: "#4A4F57", margin: "4px 0 0", lineHeight: 1.4 }}>{n.text}</p>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+
+        <button onClick={onClose} style={{ width: "100%", background: C.red, color: "#fff", border: "none", borderRadius: 12, padding: "13px 0", fontSize: 14.5, fontWeight: 700, cursor: "pointer", marginTop: 10 }}>Schließen</button>
+      </div>
+    </div>
+  );
+}
+
 function Toast({ text }) {
   if (!text) return null;
   return (
@@ -571,6 +670,12 @@ function Toast({ text }) {
     </div>
   );
 }
+
+const START_NOTIFS = [
+  { id: 1, type: "warn", palletId: "PAL-10451", product: "Diethylether", text: "Grenzwert überschritten! Aktuell: 11.4 °C (Ziel: 2-8 °C)", time: "vor 2 Min.", read: false },
+  { id: 2, type: "info", palletId: "PAL-10460", product: "Natronlauge 1 mol/l", text: "Palette erfolgreich im Lager A erfasst.", time: "vor 5 Min.", read: true },
+  { id: 3, type: "info", palletId: "PAL-10428", product: "Aceton 99,5 %", text: "Temperatur stabilisiert bei 4.2 °C.", time: "vor 10 Min.", read: true },
+];
 
 /* ---------- App ---------- */
 export default function App() {
@@ -587,6 +692,11 @@ export default function App() {
   // Splash Screen States
   const [showSplash, setShowSplash] = useState(true);
   const [fadeSplash, setFadeSplash] = useState(false);
+
+  // Notification States
+  const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
+  const [notifications, setNotifications] = useState(START_NOTIFS);
+  const [simulating, setSimulating] = useState(false);
 
   // Extended Filter States
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -625,6 +735,79 @@ export default function App() {
       clearTimeout(timerRemove);
     };
   }, []);
+
+  // Live Telemetry Simulation Timer
+  useEffect(() => {
+    if (!simulating) return;
+    const interval = setInterval(() => {
+      setPallets(prev => prev.map(p => {
+        // Change temperature by random delta between -0.3 and +0.3
+        const delta = +(Math.random() * 0.6 - 0.3).toFixed(1);
+        const newTemp = +(p.temp + delta).toFixed(1);
+        const warn = newTemp < p.min || newTemp > p.max;
+        
+        // Add to history (keeping the last 13 entries)
+        const newHistory = [...p.history.slice(1), newTemp];
+        
+        // Detect transitions to trigger push alerts
+        if (warn && !p.warn) {
+          const newNotif = {
+            id: Date.now() + Math.random(),
+            type: "warn",
+            palletId: p.id,
+            product: p.product,
+            text: `Grenzwert überschritten! Aktuell: ${newTemp} °C (Ziel: ${p.min}-${p.max} °C)`,
+            time: "gerade eben",
+            read: false
+          };
+          setNotifications(prevNotifs => [newNotif, ...prevNotifs]);
+          setToast(`Alarm: ${p.product} kritische Temperatur!`);
+        } else if (!warn && p.warn) {
+          const newNotif = {
+            id: Date.now() + Math.random(),
+            type: "info",
+            palletId: p.id,
+            product: p.product,
+            text: `Temperatur wieder im Normalbereich: ${newTemp} °C (Ziel: ${p.min}-${p.max} °C)`,
+            time: "gerade eben",
+            read: false
+          };
+          setNotifications(prevNotifs => [newNotif, ...prevNotifs]);
+          setToast(`${p.product} wieder im Bereich`);
+        }
+        
+        return {
+          ...p,
+          temp: newTemp,
+          warn,
+          history: newHistory
+        };
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [simulating, pallets]);
+
+  const handleMarkAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const handleClearAllNotifs = () => {
+    setNotifications([]);
+  };
+
+  const handleSelectNotifPallet = (n) => {
+    // Mark as read
+    setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+    setNotificationSheetOpen(false);
+    
+    // Check if the pallet is active in the system
+    if (pallets.some(p => p.id === n.palletId)) {
+      setSelected(n.palletId);
+      setScreen("detail");
+    } else {
+      setToast("Palette nicht aktiv im System");
+    }
+  };
 
   const confirmAdd = () => {
     setPallets((prev) => (prev.some((p) => p.id === scanned.id) ? prev : [...prev, scanned]));
@@ -775,6 +958,11 @@ export default function App() {
           0% { width: 0%; }
           100% { width: 100%; }
         }
+        @keyframes pulse {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.5; }
+          100% { transform: scale(1); opacity: 1; }
+        }
 
         * { -webkit-tap-highlight-color: transparent; }
         ::-webkit-scrollbar { width: 0; }
@@ -876,6 +1064,10 @@ export default function App() {
                 tempMin={tempMin}
                 tempMax={tempMax}
                 onResetAll={handleResetAllFilters}
+                onOpenNotifs={() => setNotificationSheetOpen(true)}
+                unreadCount={notifications.filter(n => !n.read).length}
+                simulating={simulating}
+                onToggleSim={() => setSimulating(prev => !prev)}
               />
             )}
             {screen === "detail" && <Detail pallet={pallet} onBack={() => setScreen("home")} openInfo={openInfo} />}
@@ -898,6 +1090,14 @@ export default function App() {
             tempMax={tempMax} 
             setTempMax={setTempMax} 
             onReset={handleResetFiltersOnly} 
+          />
+          <NotificationSheet
+            open={notificationSheetOpen}
+            onClose={() => setNotificationSheetOpen(false)}
+            notifications={notifications}
+            onMarkAllRead={handleMarkAllRead}
+            onClearAll={handleClearAllNotifs}
+            onSelectPallet={handleSelectNotifPallet}
           />
         </div>
       </div>
