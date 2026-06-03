@@ -74,7 +74,7 @@ function QRCode({ value = "ROTH", size = 150 }) {
   );
 }
 
-/* ---------- Temperaturdiagramm ---------- */
+/* ---------- Temperaturdiagramm mit Zeichenanimation ---------- */
 function TempChart({ data, lo, hi, warn }) {
   const W = 304, H = 150, pad = { l: 26, r: 10, t: 14, b: 22 }, dMin = 0, dMax = 14;
   const x = (i) => pad.l + (i / (data.length - 1)) * (W - pad.l - pad.r);
@@ -84,17 +84,27 @@ function TempChart({ data, lo, hi, warn }) {
   const area = `${line} L${x(data.length - 1).toFixed(1)},${y(dMin)} L${x(0).toFixed(1)},${y(dMin)} Z`;
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
-      <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor={stroke} stopOpacity="0.18" /><stop offset="100%" stopColor={stroke} stopOpacity="0" />
-      </linearGradient></defs>
+      <defs>
+        <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+        </linearGradient>
+      </defs>
       <rect x={pad.l} y={y(hi)} width={W - pad.l - pad.r} height={y(lo) - y(hi)} fill={C.okBg} />
       <line x1={pad.l} y1={y(hi)} x2={W - pad.r} y2={y(hi)} stroke="#BFE6CC" strokeWidth="1" strokeDasharray="3 3" />
       <line x1={pad.l} y1={y(lo)} x2={W - pad.r} y2={y(lo)} stroke="#BFE6CC" strokeWidth="1" strokeDasharray="3 3" />
       <text x={4} y={y(hi) + 3} fontSize="9" fill={C.muted}>{hi}°</text>
       <text x={4} y={y(lo) + 3} fontSize="9" fill={C.muted}>{lo}°</text>
-      <path d={area} fill="url(#fill)" />
-      <path d={line} fill="none" stroke={stroke} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={x(data.length - 1)} cy={y(data[data.length - 1])} r="4.5" fill={stroke} stroke="#fff" strokeWidth="2" />
+      
+      {/* Area Fill - Fades in after line draws */}
+      <path d={area} fill="url(#fill)" className="chart-area" />
+      
+      {/* Dynamic line - Draws itself in */}
+      <path d={line} fill="none" stroke={stroke} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="chart-line" />
+      
+      {/* Current point */}
+      <circle cx={x(data.length - 1)} cy={y(data[data.length - 1])} r="4.5" fill={stroke} stroke="#fff" strokeWidth="2" className="chart-point" />
+      
       <text x={pad.l} y={H - 5} fontSize="9" fill={C.muted}>−24h</text>
       <text x={W / 2 - 8} y={H - 5} fontSize="9" fill={C.muted}>−12h</text>
       <text x={W - pad.r - 22} y={H - 5} fontSize="9" fill={C.muted}>Jetzt</text>
@@ -115,7 +125,7 @@ function StatusPill({ warn, small }) {
 function StatusBar({ light }) {
   const col = light ? "#fff" : C.ink;
   return (
-    <div style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px 0 30px", color: col }}>
+    <div style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px 0 30px", color: col, zIndex: 10, position: "relative" }}>
       <span style={{ fontSize: 15, fontWeight: 700 }}>9:41</span>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <Signal size={16} fill={col} color={col} /><Wifi size={16} color={col} strokeWidth={2.4} /><BatteryFull size={22} color={col} strokeWidth={1.8} />
@@ -163,21 +173,13 @@ function Chips({ value, onChange, options }) {
   );
 }
 
-function Dashboard({ pallets, query, setQuery, status, setStatus, area, setArea, onOpen, onScan, openInfo }) {
-  const warnCount = pallets.filter((p) => p.warn).length;
-  const areaOf = (p) => p.location.split(" ")[0];
+function Dashboard({ allPallets, displayPallets, query, setQuery, status, setStatus, area, setArea, onOpen, onScan, openInfo, onOpenFilter, isFilterActive, onResetAll }) {
+  const warnCount = allPallets.filter((p) => p.warn).length;
   const areas = ["Alle", "Wareneingang", "Lager", "Versand"];
-  const q = query.trim().toLowerCase();
-  const filtered = pallets.filter((p) => {
-    const sOk = status === "alle" || (status === "warn" ? p.warn : !p.warn);
-    const aOk = area === "Alle" || areaOf(p) === area;
-    const qOk = !q || p.product.toLowerCase().includes(q) || p.id.toLowerCase().includes(q);
-    return sOk && aOk && qOk;
-  });
-  const sorted = [...filtered].sort((a, b) => (b.warn ? 1 : 0) - (a.warn ? 1 : 0));
-  const filterActive = status !== "alle" || area !== "Alle" || q.length > 0;
+  const filterActive = status !== "alle" || area !== "Alle" || query.trim().length > 0 || isFilterActive;
+  
   return (
-    <div style={{ animation: "fade .3s ease", paddingBottom: 96 }}>
+    <div style={{ animation: "fade .3s ease", paddingBottom: 96, position: "relative", zIndex: 5 }}>
       {/* Hero */}
       <div style={{ background: `linear-gradient(150deg, ${C.red} 0%, ${C.redDark} 62%, ${C.redDeep} 100%)`, borderRadius: "0 0 30px 30px", padding: "4px 22px 22px", color: "#fff", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", right: -40, top: -50, width: 180, height: 180, borderRadius: "50%", background: "rgba(255,255,255,.07)" }} />
@@ -195,20 +197,40 @@ function Dashboard({ pallets, query, setQuery, status, setStatus, area, setArea,
         </div>
         {/* Stat-Chips */}
         <div style={{ display: "flex", gap: 9, marginTop: 14, position: "relative" }}>
-          <Chip value={pallets.length} label="Paletten" />
-          <Chip value={pallets.length - warnCount} label="Im Bereich" />
+          <Chip value={allPallets.length} label="Paletten" />
+          <Chip value={allPallets.length - warnCount} label="Im Bereich" />
           <Chip value={warnCount} label="Warnungen" highlight={warnCount > 0} />
         </div>
       </div>
 
       {/* Suche + Filter */}
       <div style={{ padding: "16px 20px 4px", display: "flex", flexDirection: "column", gap: 11 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", boxShadow: "0 2px 8px rgba(20,10,15,.04)" }}>
-          <Search size={17} color={C.muted} />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Palette suchen …"
-            style={{ border: "none", outline: "none", flex: 1, fontSize: 14, color: C.ink, background: "transparent", fontFamily: "inherit", minWidth: 0 }} />
-          {query && <button onClick={() => setQuery("")} aria-label="Suche löschen" style={{ border: "none", background: "none", cursor: "pointer", color: C.muted, padding: 0, display: "flex" }}><X size={16} /></button>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", boxShadow: "0 2px 8px rgba(20,10,15,.04)", flex: 1 }}>
+            <Search size={17} color={C.muted} />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Palette suchen …"
+              style={{ border: "none", outline: "none", flex: 1, fontSize: 14, color: C.ink, background: "transparent", fontFamily: "inherit", minWidth: 0 }} />
+            {query && <button onClick={() => setQuery("")} aria-label="Suche löschen" style={{ border: "none", background: "none", cursor: "pointer", color: C.muted, padding: 0, display: "flex" }}><X size={16} /></button>}
+          </div>
+          {/* Extended Filter Bottom Sheet Trigger */}
+          <button onClick={onOpenFilter} 
+            style={{ 
+              border: isFilterActive ? `1px solid ${C.red}` : `1px solid ${C.line}`, 
+              background: isFilterActive ? C.warnBg : C.card, 
+              borderRadius: 12, 
+              padding: "0 13px", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              cursor: "pointer", 
+              color: isFilterActive ? C.red : C.ink, 
+              boxShadow: "0 2px 8px rgba(20,10,15,.04)",
+              transition: "all 0.2s" 
+            }}>
+            <Filter size={18} strokeWidth={isFilterActive ? 2.8 : 2.2} />
+          </button>
         </div>
+        
         <Segmented value={status} onChange={setStatus} options={[{ key: "alle", label: "Alle" }, { key: "ok", label: "Im Bereich", color: C.ok }, { key: "warn", label: "Warnung", color: C.red }]} />
         <Chips value={area} onChange={setArea} options={areas} />
       </div>
@@ -216,22 +238,22 @@ function Dashboard({ pallets, query, setQuery, status, setStatus, area, setArea,
       {/* Ergebniszeile */}
       <div style={{ padding: "8px 22px 10px", display: "flex", alignItems: "center", gap: 6 }}>
         <Filter size={14} color={C.muted} />
-        <span style={{ fontSize: 12.5, color: C.muted, fontWeight: 600 }}>{sorted.length} {sorted.length === 1 ? "Palette" : "Paletten"}{filterActive ? " gefiltert" : ""}</span>
-        {filterActive && <button onClick={() => { setStatus("alle"); setArea("Alle"); setQuery(""); }} style={{ marginLeft: "auto", border: "none", background: "none", color: C.red, fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Zurücksetzen</button>}
+        <span style={{ fontSize: 12.5, color: C.muted, fontWeight: 600 }}>{displayPallets.length} {displayPallets.length === 1 ? "Palette" : "Paletten"}{filterActive ? " gefiltert" : ""}</span>
+        {filterActive && <button onClick={onResetAll} style={{ marginLeft: "auto", border: "none", background: "none", color: C.red, fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Zurücksetzen</button>}
       </div>
 
       {/* Liste */}
       <div style={{ padding: "0 20px", display: "flex", flexDirection: "column", gap: 11 }}>
-        {sorted.length === 0 ? (
+        {displayPallets.length === 0 ? (
           <div style={{ textAlign: "center", padding: "30px 20px 10px", color: C.muted }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: C.card, border: `1px solid ${C.line}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
               <Search size={24} color={C.muted} />
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Keine Paletten gefunden</div>
-            <div style={{ fontSize: 13, marginTop: 3 }}>Passe Suche oder Filter an.</div>
+            <div style={{ fontSize: 13, marginTop: 3 }}>Passe Suche, Filter oder Bereich an.</div>
           </div>
-        ) : sorted.map((p) => (
-          <button key={p.id} onClick={() => onOpen(p.id)} style={{ textAlign: "left", border: "none", background: C.card, borderRadius: 16, padding: 0, cursor: "pointer", display: "flex", width: "100%", overflow: "hidden", boxShadow: "0 3px 12px rgba(20,10,15,.05)" }}>
+        ) : displayPallets.map((p) => (
+          <button key={p.id} onClick={() => onOpen(p.id)} style={{ textAlign: "left", border: "none", background: C.card, borderRadius: 16, padding: 0, cursor: "pointer", display: "flex", width: "100%", overflow: "hidden", boxShadow: "0 3px 12px rgba(20,10,15,.05)", transition: "transform 0.15s, box-shadow 0.15s" }} className="pallet-list-item">
             <div style={{ width: 5, background: p.warn ? C.red : C.ok, flex: "0 0 auto" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 13, padding: 14, flex: 1, minWidth: 0 }}>
               <div style={{ width: 46, height: 46, borderRadius: 12, flex: "0 0 auto", background: p.warn ? C.warnBg : C.okBg, color: p.warn ? C.red : C.ok, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -272,7 +294,7 @@ function Chip({ value, label, highlight }) {
 function Detail({ pallet, onBack, openInfo }) {
   const p = pallet;
   return (
-    <div style={{ animation: "slide .3s ease", paddingBottom: 30 }}>
+    <div style={{ animation: "slide .3s ease", paddingBottom: 30, position: "relative", zIndex: 5 }}>
       <div style={{ display: "flex", alignItems: "center", padding: "2px 16px 10px" }}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: C.red, cursor: "pointer", display: "flex", alignItems: "center", fontSize: 16, fontWeight: 600, padding: 4 }}>
           <ChevronLeft size={22} /> Übersicht
@@ -302,7 +324,11 @@ function Detail({ pallet, onBack, openInfo }) {
           </div>
         )}
 
-        <div style={{ marginTop: 14, background: C.card, border: `1px solid ${C.line}`, borderRadius: 18, padding: 18, boxShadow: "0 3px 12px rgba(20,10,15,.04)" }}>
+        {/* Temperature Card with glowing alert animation */}
+        <div style={{ marginTop: 14, background: C.card, border: `1px solid ${C.line}`, borderRadius: 18, padding: 18, boxShadow: "0 3px 12px rgba(20,10,15,.04)", position: "relative", overflow: "hidden" }}>
+          {p.warn && (
+            <div style={{ position: "absolute", inset: 0, borderRadius: 18, pointerEvents: "none", border: `2px solid ${C.red}`, animation: "hotPulse 2s infinite" }} />
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
             <span style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>Aktuelle Temperatur</span><InfoBtn onClick={() => openInfo("monitor")} />
           </div>
@@ -345,13 +371,13 @@ function Scan({ onClose, onDetect, openInfo }) {
   return (
     <div style={{ position: "absolute", inset: 0, background: "#0B0B0D", zIndex: 25, display: "flex", flexDirection: "column", animation: "fade .25s ease", borderRadius: 46, overflow: "hidden" }}>
       <StatusBar light />
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 18px 8px", color: "#fff" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 18px 8px", color: "#fff", zIndex: 10 }}>
         <button onClick={onClose} style={{ background: "rgba(255,255,255,.12)", border: "none", borderRadius: 999, width: 34, height: 34, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={19} /></button>
         <span style={{ fontSize: 16, fontWeight: 700 }}>QR-Code scannen</span>
         <InfoBtn light onClick={() => openInfo("qr")} />
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: "0 24px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: "0 24px", zIndex: 10 }}>
         {/* Holographic Laser Scanner Overlay for SmartPallets */}
         <div style={{
           display: "flex",
@@ -364,14 +390,20 @@ function Scan({ onClose, onDetect, openInfo }) {
           <AnimatedPallet status="scanning" size={130} />
         </div>
 
-        {/* Viewfinder */}
-        <button onClick={onDetect} style={{ position: "relative", width: 200, height: 200, background: "#15161A", borderRadius: 26, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-          <div style={{ background: "#fff", padding: 10, borderRadius: 14 }}><QRCode value="PAL-NEW-2026" size={120} /></div>
-          {[["t","l"],["t","r"],["b","l"],["b","r"]].map(([v,h],i) => (
-            <span key={i} style={{ position: "absolute", [v === "t" ? "top" : "bottom"]: 12, [h === "l" ? "left" : "right"]: 12, width: 30, height: 30, borderTop: v === "t" ? `3px solid ${C.red}` : "none", borderBottom: v === "b" ? `3px solid ${C.red}` : "none", borderLeft: h === "l" ? `3px solid ${C.red}` : "none", borderRight: h === "r" ? `3px solid ${C.red}` : "none", borderTopLeftRadius: v === "t" && h === "l" ? 8 : 0, borderTopRightRadius: v === "t" && h === "r" ? 8 : 0, borderBottomLeftRadius: v === "b" && h === "l" ? 8 : 0, borderBottomRightRadius: v === "b" && h === "r" ? 8 : 0 }} />
-          ))}
-          <div style={{ position: "absolute", left: 14, right: 14, height: 2, background: `linear-gradient(90deg, transparent, ${C.red}, transparent)`, boxShadow: `0 0 12px 2px ${C.red}`, animation: "scanmove 2.1s ease-in-out infinite alternate" }} />
-        </button>
+        {/* Viewfinder with radar wave animation */}
+        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {/* Radar waves */}
+          <div className="radar-wave" />
+          <div className="radar-wave" style={{ animationDelay: "1.2s" }} />
+
+          <button onClick={onDetect} style={{ position: "relative", width: 200, height: 200, background: "#15161A", borderRadius: 26, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", zIndex: 2 }}>
+            <div style={{ background: "#fff", padding: 10, borderRadius: 14 }}><QRCode value="PAL-NEW-2026" size={120} /></div>
+            {[["t","l"],["t","r"],["b","l"],["b","r"]].map(([v,h],i) => (
+              <span key={i} style={{ position: "absolute", [v === "t" ? "top" : "bottom"]: 12, [h === "l" ? "left" : "right"]: 12, width: 30, height: 30, borderTop: v === "t" ? `3px solid ${C.red}` : "none", borderBottom: v === "b" ? `3px solid ${C.red}` : "none", borderLeft: h === "l" ? `3px solid ${C.red}` : "none", borderRight: h === "r" ? `3px solid ${C.red}` : "none", borderTopLeftRadius: v === "t" && h === "l" ? 8 : 0, borderTopRightRadius: v === "t" && h === "r" ? 8 : 0, borderBottomLeftRadius: v === "b" && h === "l" ? 8 : 0, borderBottomRightRadius: v === "b" && h === "r" ? 8 : 0 }} />
+            ))}
+            <div style={{ position: "absolute", left: 14, right: 14, height: 2, background: `linear-gradient(90deg, transparent, ${C.red}, transparent)`, boxShadow: `0 0 12px 2px ${C.red}`, animation: "scanmove 2.1s ease-in-out infinite alternate" }} />
+          </button>
+        </div>
 
         <div style={{ textAlign: "center", color: "#fff" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13.5, opacity: 0.85 }}>
@@ -388,7 +420,7 @@ function Scan({ onClose, onDetect, openInfo }) {
 function Register({ pallet, onCancel, onConfirm, openInfo }) {
   const p = pallet;
   return (
-    <div style={{ animation: "slide .3s ease", paddingBottom: 30 }}>
+    <div style={{ animation: "slide .3s ease", paddingBottom: 30, position: "relative", zIndex: 5 }}>
       <div style={{ display: "flex", alignItems: "center", padding: "2px 16px 10px" }}>
         <button onClick={onCancel} style={{ background: "none", border: "none", color: C.red, cursor: "pointer", display: "flex", alignItems: "center", fontSize: 16, fontWeight: 600, padding: 4 }}>
           <ChevronLeft size={22} /> Abbrechen
@@ -457,6 +489,80 @@ function InfoSheet({ info, onClose }) {
   );
 }
 
+/* ---------- Extended Filter Drawer Bottom Sheet ---------- */
+function FilterSheet({ open, onClose, sortBy, setSortBy, tempMin, setTempMin, tempMax, setTempMax, onReset }) {
+  if (!open) return null;
+  return (
+    <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.32)", display: "flex", alignItems: "flex-end", zIndex: 40, borderRadius: 46, animation: "fade .2s ease" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", background: "#fff", borderRadius: "26px 26px 46px 46px", padding: "10px 22px 34px", animation: "up .28s cubic-bezier(.2,.8,.2,1)" }}>
+        <div style={{ width: 38, height: 5, background: "#D9DBE0", borderRadius: 999, margin: "0 auto 16px" }} />
+        
+        {/* Title */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: C.warnBg, color: C.red, display: "flex", alignItems: "center", justifyContent: "center" }}><Filter size={18} strokeWidth={2.4} /></div>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.ink }}>Filter & Sortierung</h3>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: C.bg, borderRadius: 999, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: C.muted }}><X size={18} /></button>
+        </div>
+
+        {/* Sort Options */}
+        <div style={{ marginBottom: 18 }}>
+          <label style={{ fontSize: 12.5, color: C.muted, fontWeight: 700, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Sortieren nach</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {[
+              { key: "warnFirst", label: "Warnungen zuerst (Standard)" },
+              { key: "tempDesc", label: "Temperatur (höchste zuerst)" },
+              { key: "tempAsc", label: "Temperatur (niedrigste zuerst)" },
+              { key: "id", label: "Paletten-ID (A-Z)" },
+              { key: "updated", label: "Messzeitpunkt (jüngste)" }
+            ].map(opt => {
+              const active = sortBy === opt.key;
+              return (
+                <button key={opt.key} onClick={() => setSortBy(opt.key)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", border: active ? `1px solid ${C.red}` : `1px solid ${C.line}`, background: active ? C.warnBg : C.card, color: active ? C.redDark : C.ink, borderRadius: 10, padding: "10px 14px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
+                  {opt.label}
+                  {active && <Check size={16} strokeWidth={3} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Temperature Range Slider */}
+        <div style={{ marginBottom: 22 }}>
+          <label style={{ fontSize: 12.5, color: C.muted, fontWeight: 700, display: "block", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>Temperaturbereich filtern</label>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, background: C.bg, padding: "12px 14px", borderRadius: 14 }}>
+            {/* Min Slider */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
+                <span>Minimalwert</span>
+                <span style={{ color: C.red, fontFamily: "monospace" }}>{tempMin.toFixed(1)} °C</span>
+              </div>
+              <input type="range" min="0" max="10" step="0.5" value={tempMin} onChange={e => setTempMin(Math.min(parseFloat(e.target.value), tempMax))} style={{ width: "100%", accentColor: C.red, cursor: "pointer" }} />
+            </div>
+
+            {/* Max Slider */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
+                <span>Maximalwert</span>
+                <span style={{ color: C.red, fontFamily: "monospace" }}>{tempMax.toFixed(1)} °C</span>
+              </div>
+              <input type="range" min="5" max="15" step="0.5" value={tempMax} onChange={e => setTempMax(Math.max(parseFloat(e.target.value), tempMin))} style={{ width: "100%", accentColor: C.red, cursor: "pointer" }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onReset} style={{ flex: 1, background: C.bg, color: C.ink, border: "none", borderRadius: 12, padding: "13px 0", fontSize: 14.5, fontWeight: 700, cursor: "pointer" }}>Zurücksetzen</button>
+          <button onClick={onClose} style={{ flex: 2, background: C.red, color: "#fff", border: "none", borderRadius: 12, padding: "13px 0", fontSize: 14.5, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(226,0,26,.2)" }}>Anwenden</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Toast({ text }) {
   if (!text) return null;
   return (
@@ -477,6 +583,12 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("alle");
   const [area, setArea] = useState("Alle");
+
+  // Extended Filter States
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [sortBy, setSortBy] = useState("warnFirst");
+  const [tempMin, setTempMin] = useState(0);
+  const [tempMax, setTempMax] = useState(15);
 
   const pallet = pallets.find((p) => p.id === selected);
   const openInfo = (k) => setInfo(INFO[k]);
@@ -502,11 +614,61 @@ export default function App() {
 
   const confirmAdd = () => {
     setPallets((prev) => (prev.some((p) => p.id === scanned.id) ? prev : [...prev, scanned]));
-    setStatus("alle"); setArea("Alle"); setQuery("");
+    handleResetAllFilters();
     setScreen("home");
     setToast(`${scanned.product} aufgenommen`);
   };
 
+  const handleResetFiltersOnly = () => {
+    setSortBy("warnFirst");
+    setTempMin(0);
+    setTempMax(15);
+  };
+
+  const handleResetAllFilters = () => {
+    setStatus("alle");
+    setArea("Alle");
+    setQuery("");
+    handleResetFiltersOnly();
+  };
+
+  // Pre-calculate Filtering & Sorting
+  const areaOf = (p) => p.location.split(" ")[0];
+  const q = query.trim().toLowerCase();
+  
+  const filteredPallets = pallets.filter((p) => {
+    const sOk = status === "alle" || (status === "warn" ? p.warn : !p.warn);
+    const aOk = area === "Alle" || areaOf(p) === area;
+    const qOk = !q || p.product.toLowerCase().includes(q) || p.id.toLowerCase().includes(q);
+    const tOk = p.temp >= tempMin && p.temp <= tempMax;
+    return sOk && aOk && qOk && tOk;
+  });
+
+  const sortedPallets = [...filteredPallets].sort((a, b) => {
+    if (sortBy === "warnFirst") {
+      return (b.warn ? 1 : 0) - (a.warn ? 1 : 0);
+    }
+    if (sortBy === "tempDesc") {
+      return b.temp - a.temp;
+    }
+    if (sortBy === "tempAsc") {
+      return a.temp - b.temp;
+    }
+    if (sortBy === "id") {
+      return a.id.localeCompare(b.id);
+    }
+    if (sortBy === "updated") {
+      const getMin = (str) => {
+        if (str.includes("eben")) return 0;
+        const match = str.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 999;
+      };
+      return getMin(a.updated) - getMin(b.updated);
+    }
+    return 0;
+  });
+
+  const isFilterActive = sortBy !== "warnFirst" || tempMin !== 0 || tempMax !== 15;
   const light = screen === "scan";
 
   return (
@@ -518,6 +680,74 @@ export default function App() {
         @keyframes up { from { transform: translateY(100%) } to { transform: none } }
         @keyframes drop { from { opacity: 0; transform: translateY(-12px) } to { opacity: 1; transform: none } }
         @keyframes scanmove { from { top: 16px } to { bottom: 16px; top: auto } }
+        
+        /* Ambient Floating Particles Background Keyframes */
+        @keyframes floatParticle1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(30px, -45px) scale(1.1); }
+        }
+        @keyframes floatParticle2 {
+          0%, 100% { transform: translate(0, 0) scale(1.05); }
+          50% { transform: translate(-35px, 25px) scale(0.9); }
+        }
+
+        /* Temp Chart SVG Draw animation */
+        @keyframes drawPath {
+          from { stroke-dashoffset: 600; }
+          to { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeInArea {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes popPoint {
+          0% { transform: scale(0); opacity: 0; }
+          70% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .chart-line {
+          stroke-dasharray: 600;
+          stroke-dashoffset: 600;
+          animation: drawPath 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        .chart-area {
+          animation: fadeInArea 1s ease-out 0.8s forwards;
+          opacity: 0;
+        }
+        .chart-point {
+          transform-origin: center;
+          animation: popPoint 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 1.5s forwards;
+          opacity: 0;
+        }
+
+        /* Radar Sonar scan effect */
+        @keyframes radarPulse {
+          0% { transform: scale(0.5); opacity: 0.8; }
+          100% { transform: scale(1.35); opacity: 0; }
+        }
+        .radar-wave {
+          position: absolute;
+          width: 250px;
+          height: 250px;
+          border: 1.5px solid rgba(226, 0, 26, 0.25);
+          border-radius: 50%;
+          animation: radarPulse 2.4s linear infinite;
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        /* Glowing warning halo */
+        @keyframes hotPulse {
+          0%, 100% { box-shadow: 0 0 10px rgba(226, 0, 26, 0.08); }
+          50% { box-shadow: 0 0 22px rgba(226, 0, 26, 0.25); }
+        }
+
+        /* Hover micro-animation for pallet items */
+        .pallet-list-item:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(20,10,15,.08) !important;
+        }
+
         * { -webkit-tap-highlight-color: transparent; }
         ::-webkit-scrollbar { width: 0; }
       `}</style>
@@ -526,14 +756,40 @@ export default function App() {
         Tippe auf <b style={{ color: C.red }}>„Palette scannen"</b> für den QR-Flow · die <b style={{ color: C.red }}>(i)</b>-Symbole erklären jede Funktion
       </p>
 
-      <div style={{ width: 380, maxWidth: "100%", height: 800, background: "#0B0B0D", borderRadius: 56, padding: 12, boxShadow: "0 30px 60px rgba(60,10,15,.28), 0 4px 12px rgba(0,0,0,.2)", position: "relative" }}>
-        <div style={{ width: "100%", height: "100%", background: C.bg, borderRadius: 46, overflow: "hidden", position: "relative", display: "flex", flexDirection: "column" }}>
+      {/* Device Frame */}
+      <div style={{ width: 380, maxWidth: "100%", height: 800, background: "#0B0B0D", borderRadius: 56, padding: 12, boxShadow: "0 30px 60px rgba(60,10,15,.28), 0 4px 12px rgba(0,0,0,.2)", position: "relative", overflow: "hidden" }}>
+        
+        {/* Floating Background Glow Particles */}
+        <div style={{ position: "absolute", top: 120, left: 30, width: 150, height: 150, borderRadius: "50%", background: "rgba(226,0,26,0.035)", filter: "blur(40px)", animation: "floatParticle1 20s ease-in-out infinite", pointerEvents: "none", zIndex: 1 }} />
+        <div style={{ position: "absolute", bottom: 180, right: 20, width: 160, height: 160, borderRadius: "50%", background: "rgba(26,122,60,0.035)", filter: "blur(45px)", animation: "floatParticle2 24s ease-in-out infinite", pointerEvents: "none", zIndex: 1 }} />
+        
+        <div style={{ width: "100%", height: "100%", background: C.bg, borderRadius: 46, overflow: "hidden", position: "relative", display: "flex", flexDirection: "column", zIndex: 2 }}>
           <div style={{ position: "absolute", top: 11, left: "50%", transform: "translateX(-50%)", width: 116, height: 33, background: "#0B0B0D", borderRadius: 999, zIndex: 30 }} />
 
           {!light && <StatusBar />}
 
-          <div style={{ flex: 1, overflowY: "auto", paddingTop: light ? 0 : 4 }}>
-            {screen === "home" && <Dashboard pallets={pallets} query={query} setQuery={setQuery} status={status} setStatus={setStatus} area={area} setArea={setArea} onOpen={(id) => { setSelected(id); setScreen("detail"); }} onScan={() => setScreen("scan")} openInfo={openInfo} />}
+          <div style={{ flex: 1, overflowY: "auto", paddingTop: light ? 0 : 4, zIndex: 5 }}>
+            {screen === "home" && (
+              <Dashboard 
+                allPallets={pallets} 
+                displayPallets={sortedPallets} 
+                query={query} 
+                setQuery={setQuery} 
+                status={status} 
+                setStatus={setStatus} 
+                area={area} 
+                setArea={setArea} 
+                onOpen={(id) => { setSelected(id); setScreen("detail"); }} 
+                onScan={() => setScreen("scan")} 
+                openInfo={openInfo} 
+                onOpenFilter={() => setFilterSheetOpen(true)}
+                isFilterActive={isFilterActive}
+                sortBy={sortBy}
+                tempMin={tempMin}
+                tempMax={tempMax}
+                onResetAll={handleResetAllFilters}
+              />
+            )}
             {screen === "detail" && <Detail pallet={pallet} onBack={() => setScreen("home")} openInfo={openInfo} />}
             {screen === "register" && <Register pallet={scanned} onCancel={() => setScreen("home")} onConfirm={confirmAdd} openInfo={openInfo} />}
           </div>
@@ -544,6 +800,17 @@ export default function App() {
 
           <Toast text={toast} />
           <InfoSheet info={info} onClose={() => setInfo(null)} />
+          <FilterSheet 
+            open={filterSheetOpen} 
+            onClose={() => setFilterSheetOpen(false)} 
+            sortBy={sortBy} 
+            setSortBy={setSortBy} 
+            tempMin={tempMin} 
+            setTempMin={setTempMin} 
+            tempMax={tempMax} 
+            setTempMax={setTempMax} 
+            onReset={handleResetFiltersOnly} 
+          />
         </div>
       </div>
     </div>
