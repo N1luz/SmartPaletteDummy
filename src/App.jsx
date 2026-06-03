@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   ChevronLeft, Info, Thermometer, AlertTriangle, Check, CheckCircle2,
   Search, Bell, Wifi, BatteryFull, Signal, X, Clock, ChevronRight,
-  QrCode, ScanLine, MapPin, Package, Filter
+  QrCode, ScanLine, MapPin, Package, Filter, Download, FileText
 } from "lucide-react";
 import AnimatedPallet from "./components/AnimatedPallet";
 
@@ -1098,6 +1098,73 @@ export default function App() {
             onMarkAllRead={handleMarkAllRead}
             onClearAll={handleClearAllNotifs}
             onSelectPallet={handleSelectNotifPallet}
+          />
+        </div>
+      </div>
+
+      {/* Branded PDF Embed Sektion */}
+      <div style={{ 
+        width: "100%", 
+        maxWidth: 1100, 
+        marginTop: 48, 
+        display: "flex", 
+        flexDirection: "column", 
+        gap: 16,
+        boxSizing: "border-box",
+        padding: "0 16px"
+      }}>
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center", 
+          flexWrap: "wrap",
+          gap: 12
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <FileText size={22} color={C.red} />
+            <h3 style={{ fontSize: "18px", fontWeight: 800, color: C.ink, margin: 0 }}>
+              Original-Präsentation (PDF)
+            </h3>
+          </div>
+          <a 
+            href="/Effi_WHD24B4_org.pdf" 
+            download
+            style={{
+              background: C.red,
+              color: "#fff",
+              textDecoration: "none",
+              padding: "10px 18px",
+              borderRadius: "10px",
+              fontWeight: 700,
+              fontSize: "13.5px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              boxShadow: "0 4px 12px rgba(226,0,26,0.15)",
+              transition: "transform 0.2s, opacity 0.2s"
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.9; e.currentTarget.style.transform = "translateY(-1px)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = "translateY(0)"; }}
+          >
+            <Download size={16} /> PDF Herunterladen
+          </a>
+        </div>
+
+        <div style={{ 
+          width: "100%", 
+          height: "750px", 
+          borderRadius: 20, 
+          overflow: "hidden", 
+          border: `1px solid ${C.line}`, 
+          boxShadow: "0 15px 40px rgba(0,0,0,0.06)",
+          background: "#fff"
+        }}>
+          <iframe 
+            src="/Effi_WHD24B4_org.pdf" 
+            width="100%" 
+            height="100%" 
+            style={{ border: "none" }}
+            title="Carl Roth PDF Präsentation"
           />
         </div>
       </div>
