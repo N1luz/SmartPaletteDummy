@@ -5,6 +5,7 @@ import {
   QrCode, ScanLine, MapPin, Package, Filter
 } from "lucide-react";
 import AnimatedPallet from "./components/AnimatedPallet";
+import Presentation from "./components/Presentation";
 
 /* ============================================================
    SmartPallet – Clickdummy (Carl Roth GmbH + Co. KG)
@@ -1100,6 +1101,11 @@ export default function App() {
             onSelectPallet={handleSelectNotifPallet}
           />
         </div>
+      </div>
+
+      {/* Branded Presentation & Pitch Deck Sektion */}
+      <div style={{ width: "100%", maxWidth: 1100, marginTop: 60, borderRadius: 24, overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.06)", border: `1px solid ${C.line}` }}>
+        <Presentation />
       </div>
     </div>
   );
