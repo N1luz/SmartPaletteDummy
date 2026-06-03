@@ -184,7 +184,7 @@ function Dashboard({ pallets, query, setQuery, status, setStatus, area, setArea,
         <div style={{ position: "absolute", right: 40, top: 70, width: 90, height: 90, borderRadius: "50%", background: "rgba(255,255,255,.06)" }} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <div style={{ background: "#fff", color: C.red, fontWeight: 800, fontSize: 13, padding: "4px 9px", borderRadius: 8, letterSpacing: 0.5, fontStyle: "italic" }}>ROTH</div>
+            <img src="/carl-roth-logo.png" alt="Carl Roth Logo" style={{ height: 22, objectFit: "contain", borderRadius: 3 }} />
             <span style={{ fontSize: 19, fontWeight: 800 }}>SmartPallet</span>
           </div>
           <Bell size={20} color="#fff" />
